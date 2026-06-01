@@ -1,0 +1,9 @@
+@System_Monitor_API_v2_HostAddress = http://localhost:5143
+
+GET {{System_Monitor_API_v2_HostAddress}}/api/metrics/
+Accept: application/json
+
+###
+
+GET {{System_Monitor_API_v2_HostAddress}}/api/metrics/stream
+Accept: application/json
