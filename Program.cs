@@ -1,7 +1,6 @@
 
 using System.Runtime.InteropServices;
 using System.Text.Json;
-using Microsoft.AspNetCore.Mvc;
 using System_Monitor_API_v2.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +11,9 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddSingleton<ICrossPlatformHardwareMonitor, CrossPlatformHardwareMonitor>();
 builder.Services.AddSingleton<IHardwareMetricPoller, HardwareMetricPoller>();
+builder.Services.AddSingleton<HardwareMetricsCache>();
+builder.Services.AddSingleton<IHardwareMetricsCache>(sp => sp.GetRequiredService<HardwareMetricsCache>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<HardwareMetricsCache>());
 
 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
     builder.Services.AddSingleton<INativeHardwareMonitor, WindowsHardwareMonitor>();
@@ -30,10 +32,18 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.MapGet("api/metrics", (ICrossPlatformHardwareMonitor crossPlatformHardwareMonitor) =>
+var jsonOptions = new JsonSerializerOptions
+{
+    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+};
+
+app.MapGet("api/metrics", (IHardwareMetricsCache cache) =>
     {
-        var metrics = crossPlatformHardwareMonitor.GetHardwareInfo();
-        return Results.Ok(metrics);
+        var metrics = cache.Latest;
+        return metrics is not null 
+            ? Results.Json(metrics, jsonOptions) 
+            : Results.Problem("Metrics not yet available", statusCode: 503);
     })
     .WithName("GetHardwareMetrics");
 
@@ -48,10 +58,10 @@ app.MapGet("api/metrics/stream", async (
     
     await foreach (var metrics in poller.StreamAsync(TimeSpan.FromSeconds(1), cancellationToken))
     {
-        var json = JsonSerializer.Serialize(metrics);
+        var json = JsonSerializer.Serialize(metrics, jsonOptions);
         await context.Response.WriteAsync($"data: {json}\n\n", cancellationToken);
         await context.Response.Body.FlushAsync(cancellationToken);
     }
 }).WithName("GetMetricsStream");
 
-app.Run(); 
+app.Run();

@@ -19,4 +19,6 @@ public class HardwareMetrics
     public RamMetrics Ram { get; set; } = new RamMetrics();
     
     public List<DiskMetrics> Disks { get; set; } = [];
+    
+    public List<NetworkMetrics> Networks { get; set; } = [];
 }

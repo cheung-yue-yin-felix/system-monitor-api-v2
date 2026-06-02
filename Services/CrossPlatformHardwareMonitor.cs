@@ -1,4 +1,5 @@
-﻿using Hardware.Info;
+﻿using System.ComponentModel;
+using Hardware.Info;
 using System_Monitor_API_v2.Models;
 using System_Monitor_API_v2.Utils;
 
@@ -7,29 +8,55 @@ namespace System_Monitor_API_v2.Services;
 public class CrossPlatformHardwareMonitor(ILogger<CrossPlatformHardwareMonitor> logger, INativeHardwareMonitor nativeHardwareMonitor) : ICrossPlatformHardwareMonitor
 {
     private readonly HardwareInfo _hardwareInfo = new();
+    private readonly SemaphoreSlim _semaphore = new(1, 1);
     
     public HardwareMetrics GetHardwareInfo()
     {
-        var hardwareMetrics = new HardwareMetrics();
-        
+        _semaphore.Wait();
         try
         {
-            _hardwareInfo.RefreshAll();
+            var hardwareMetrics = new HardwareMetrics();
+            
+            try
+            {
+                _hardwareInfo.RefreshAll();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Exception on refreshing hardware info");
+            }
+
+            FillCpuInfo(hardwareMetrics);
+            
+            FillGpuInfo(hardwareMetrics);
+
+            FillMemoryInfo(hardwareMetrics);
+
+            FillDiskInfo(hardwareMetrics);
+            
+            _hardwareInfo.NetworkAdapterList.ForEach(nic =>
+            {
+                hardwareMetrics.Networks.Add(
+                    new NetworkMetrics()
+                    {
+                        Name = nic.Name,
+                        Type = nic.AdapterType,
+                        DhcpServer = nic.DHCPServer.ToString(),
+                        MacAddress = nic.MACAddress,
+                        IpAddresses = nic.IPAddressList.Select(ip => ip.ToString()).ToList(),
+                        IpSubnets = nic.IPSubnetList.Select(ip => ip.ToString()).ToList(),
+                        DefaultIpGateways = nic.DefaultIPGatewayList.Select(ip => ip.ToString()).ToList(),
+                        DownloadSpeed = $"{ByteFormatter.BytesToMiB((long)nic.BytesReceivedPersec)}/s",
+                        UploadSpeed = $"{ByteFormatter.BytesToMiB((long)nic.BytesSentPersec)}/s"
+                    });
+            });
+
+            return hardwareMetrics;
         }
-        catch (Exception ex)
+        finally
         {
-            logger.LogError(ex, "Exception on refreshing hardware info");
+            _semaphore.Release();
         }
-
-        FillCpuInfo(hardwareMetrics);
-        
-        FillGpuInfo(hardwareMetrics);
-
-        FillMemoryInfo(hardwareMetrics);
-
-        FillDiskInfo(hardwareMetrics);
-
-        return hardwareMetrics;
     }
 
     private void FillCpuInfo(HardwareMetrics hardwareMetrics)
