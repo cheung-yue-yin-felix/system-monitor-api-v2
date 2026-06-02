@@ -1,5 +1,3 @@
-
-using System.Runtime.InteropServices;
 using System.Text.Json;
 using System_Monitor_API_v2.Services;
 
@@ -9,18 +7,12 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-builder.Services.AddSingleton<ICrossPlatformHardwareMonitor, CrossPlatformHardwareMonitor>();
+builder.Services.AddSingleton<IHardwareInfoService, HardwareInfoService>();
 builder.Services.AddSingleton<IHardwareMetricPoller, HardwareMetricPoller>();
 builder.Services.AddSingleton<HardwareMetricsCache>();
 builder.Services.AddSingleton<IHardwareMetricsCache>(sp => sp.GetRequiredService<HardwareMetricsCache>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<HardwareMetricsCache>());
-
-if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-    builder.Services.AddSingleton<INativeHardwareMonitor, WindowsHardwareMonitor>();
-else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-    builder.Services.AddSingleton<INativeHardwareMonitor, LinuxHardwareMonitor>();
-else
-    throw new PlatformNotSupportedException();
+builder.Services.AddSingleton<ILibreHardwareMonitorService, LibreHardwareMonitorServiceService>();
     
 var app = builder.Build();
 

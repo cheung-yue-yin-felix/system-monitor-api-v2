@@ -4,7 +4,7 @@ using System_Monitor_API_v2.Utils;
 
 namespace System_Monitor_API_v2.Services;
 
-public class WindowsHardwareMonitor(ILogger<WindowsHardwareMonitor> logger) : INativeHardwareMonitor, IDisposable
+public class LibreHardwareMonitorServiceService(ILogger<LibreHardwareMonitorServiceService> logger) : ILibreHardwareMonitorService, IDisposable
 {
     private readonly Computer _computer = InitiateComputer();
     private bool _isOpen;

@@ -3,7 +3,7 @@ using System_Monitor_API_v2.Models;
 
 namespace System_Monitor_API_v2.Services;
 
-public class HardwareMetricPoller(ICrossPlatformHardwareMonitor hardware, ILogger<HardwareMetricPoller> logger): IHardwareMetricPoller
+public class HardwareMetricPoller(IHardwareInfoService hardware, ILogger<HardwareMetricPoller> logger): IHardwareMetricPoller
 {
     public async IAsyncEnumerable<HardwareMetrics> StreamAsync(
         TimeSpan interval, 

@@ -2,7 +2,7 @@
 
 namespace System_Monitor_API_v2.Services;
 
-public interface ICrossPlatformHardwareMonitor
+public interface IHardwareInfoService
 {
     HardwareMetrics GetHardwareInfo();
 }

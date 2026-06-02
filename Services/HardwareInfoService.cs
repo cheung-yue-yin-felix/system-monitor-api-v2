@@ -5,7 +5,7 @@ using System_Monitor_API_v2.Utils;
 
 namespace System_Monitor_API_v2.Services;
 
-public class CrossPlatformHardwareMonitor(ILogger<CrossPlatformHardwareMonitor> logger, INativeHardwareMonitor nativeHardwareMonitor) : ICrossPlatformHardwareMonitor
+public class HardwareInfoService(ILogger<HardwareInfoService> logger, ILibreHardwareMonitorService libreHardwareMonitorService) : IHardwareInfoService
 {
     private readonly HardwareInfo _hardwareInfo = new();
     private readonly SemaphoreSlim _semaphore = new(1, 1);
@@ -61,8 +61,8 @@ public class CrossPlatformHardwareMonitor(ILogger<CrossPlatformHardwareMonitor> 
 
     private void FillCpuInfo(HardwareMetrics hardwareMetrics)
     {
-        var temperatures = nativeHardwareMonitor.GetCpuTemperatures();
-        var powers = nativeHardwareMonitor.GetCpuPowers();
+        var temperatures = libreHardwareMonitorService.GetCpuTemperatures();
+        var powers = libreHardwareMonitorService.GetCpuPowers();
         var cpuList = _hardwareInfo.CpuList.Select(cpu => 
             new CpuMetrics
             {
@@ -85,10 +85,10 @@ public class CrossPlatformHardwareMonitor(ILogger<CrossPlatformHardwareMonitor> 
 
     private void FillGpuInfo(HardwareMetrics hardwareMetrics)
     {
-        var loads = nativeHardwareMonitor.GetGpuLoads();
-        var temperatures = nativeHardwareMonitor.GetGpuTemperatures();
-        var powers = nativeHardwareMonitor.GetGpuPowers();
-        var clocks = nativeHardwareMonitor.GetGpuClocks();
+        var loads = libreHardwareMonitorService.GetGpuLoads();
+        var temperatures = libreHardwareMonitorService.GetGpuTemperatures();
+        var powers = libreHardwareMonitorService.GetGpuPowers();
+        var clocks = libreHardwareMonitorService.GetGpuClocks();
         var gpuList = _hardwareInfo.VideoControllerList.Select(gpu => 
             new GpuMetrics()
             {
