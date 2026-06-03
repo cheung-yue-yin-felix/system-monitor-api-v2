@@ -34,22 +34,7 @@ public class HardwareInfoService(ILogger<HardwareInfoService> logger, ILibreHard
 
             FillDiskInfo(hardwareMetrics);
             
-            _hardwareInfo.NetworkAdapterList.ForEach(nic =>
-            {
-                hardwareMetrics.Networks.Add(
-                    new NetworkMetrics()
-                    {
-                        Name = nic.Name,
-                        Type = nic.AdapterType,
-                        DhcpServer = nic.DHCPServer.ToString(),
-                        MacAddress = nic.MACAddress,
-                        IpAddresses = nic.IPAddressList.Select(ip => ip.ToString()).ToList(),
-                        IpSubnets = nic.IPSubnetList.Select(ip => ip.ToString()).ToList(),
-                        DefaultIpGateways = nic.DefaultIPGatewayList.Select(ip => ip.ToString()).ToList(),
-                        DownloadSpeed = $"{ByteFormatter.BytesToMiB((long)nic.BytesReceivedPersec)}/s",
-                        UploadSpeed = $"{ByteFormatter.BytesToMiB((long)nic.BytesSentPersec)}/s"
-                    });
-            });
+            FillNetworkInfo(hardwareMetrics);
 
             return hardwareMetrics;
         }
@@ -147,6 +132,26 @@ public class HardwareInfoService(ILogger<HardwareInfoService> logger, ILibreHard
             });
         
         hardwareMetrics.Disks = diskMetrics.ToList();
+    }
+
+    private void FillNetworkInfo(HardwareMetrics hardwareMetrics)
+    {
+        _hardwareInfo.NetworkAdapterList.ForEach(nic =>
+        {
+            hardwareMetrics.Networks.Add(
+                new NetworkMetrics()
+                {
+                    Name = nic.Name,
+                    Type = nic.AdapterType,
+                    DhcpServer = nic.DHCPServer.ToString(),
+                    MacAddress = nic.MACAddress,
+                    IpAddresses = nic.IPAddressList.Select(ip => ip.ToString()).ToList(),
+                    IpSubnets = nic.IPSubnetList.Select(ip => ip.ToString()).ToList(),
+                    DefaultIpGateways = nic.DefaultIPGatewayList.Select(ip => ip.ToString()).ToList(),
+                    DownloadSpeed = $"{ByteFormatter.BytesToMiB((long)nic.BytesReceivedPersec)}/s",
+                    UploadSpeed = $"{ByteFormatter.BytesToMiB((long)nic.BytesSentPersec)}/s"
+                });
+        });
     }
     
     private List<PartitionMetrics> GetPartitions(Drive disk)
