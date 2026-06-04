@@ -12,6 +12,8 @@ if (!string.IsNullOrEmpty(applicationFolder))
     Environment.CurrentDirectory = applicationFolder;
 }
 
+var isEmbedded = args.Contains("--embedded");
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -29,12 +31,20 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins(
-                "https://cheung-yue-yin-felix.github.io",
-                "https://system-monitor",
-                "http://localhost:5173")
-            .AllowAnyMethod()
-            .AllowAnyHeader();
+        if (isEmbedded)
+        {
+            // When bundled inside Electron, requests come from file:// protocol
+            policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+        }
+        else
+        {
+            policy.WithOrigins(
+                    "https://cheung-yue-yin-felix.github.io",
+                    "https://system-monitor",
+                    "http://localhost:5173")
+                .AllowAnyMethod()
+                .AllowAnyHeader();
+        }
     });
 });
 
@@ -47,8 +57,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowFrontend");
-app.UseHttpsRedirection();
-app.UseMiddleware<ApiKeyMiddleware>();
+
+if (!isEmbedded)
+{
+    app.UseHttpsRedirection();
+    app.UseMiddleware<ApiKeyMiddleware>();
+}
 
 var jsonOptions = new JsonSerializerOptions
 {
