@@ -1,5 +1,16 @@
+using System.Diagnostics;
 using System.Text.Json;
+using System_Monitor_API_v2.Authentication;
 using System_Monitor_API_v2.Services;
+
+var exePath = Process.GetCurrentProcess().MainModule?.FileName;
+var applicationFolder = Path.GetDirectoryName(exePath);
+
+if (!string.IsNullOrEmpty(applicationFolder))
+{
+    // 2. Force Windows to shift its working directory out of System32 into the real app folder
+    Environment.CurrentDirectory = applicationFolder;
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,7 +24,20 @@ builder.Services.AddSingleton<HardwareMetricsCache>();
 builder.Services.AddSingleton<IHardwareMetricsCache>(sp => sp.GetRequiredService<HardwareMetricsCache>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<HardwareMetricsCache>());
 builder.Services.AddSingleton<ILibreHardwareMonitorService, LibreHardwareMonitorServiceService>();
-    
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins(
+                "https://cheung-yue-yin-felix.github.io",
+                "https://system-monitor",
+                "http://localhost:5173")
+            .AllowAnyMethod()
+            .AllowAnyHeader();
+    });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -22,7 +46,9 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseCors("AllowFrontend");
 app.UseHttpsRedirection();
+app.UseMiddleware<ApiKeyMiddleware>();
 
 var jsonOptions = new JsonSerializerOptions
 {

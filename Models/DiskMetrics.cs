@@ -10,7 +10,7 @@ public class DiskMetrics
 public class PartitionMetrics
 {
     public string Name { get; set; } = "";
-    public List<VolumeMetrics> Volumes = new List<VolumeMetrics>();
+    public List<VolumeMetrics> Volumes { get; set; }= [];
 }
 
 public class VolumeMetrics

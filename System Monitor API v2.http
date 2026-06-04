@@ -2,8 +2,9 @@
 
 GET {{System_Monitor_API_v2_HostAddress}}/api/metrics/
 Accept: application/json
+X-API-Key: uVJ5bzhbqdeKMSzrubreBvuJETKh5IEZ
 
 ###
 
-GET {{System_Monitor_API_v2_HostAddress}}/api/metrics/stream
+GET {{System_Monitor_API_v2_HostAddress}}/api/metrics/stream?apiKey=uVJ5bzhbqdeKMSzrubreBvuJETKh5IEZ
 Accept: application/json
