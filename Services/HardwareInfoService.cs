@@ -47,14 +47,17 @@ public class HardwareInfoService(ILogger<HardwareInfoService> logger, ILibreHard
     {
         var temperatures = libreHardwareMonitorService.GetCpuTemperatures();
         var powers = libreHardwareMonitorService.GetCpuPowers();
+        var loads = libreHardwareMonitorService.GetCpuLoads();
         var cpuList = _hardwareInfo.CpuList.Select(cpu => 
             new CpuMetrics
             {
                 Name = cpu.Name.TrimEnd(),
-                ClockSpeed = $"{cpu.CurrentClockSpeed:N} MHz",
-                Load = $"{(double)cpu.PercentProcessorTime / cpu.NumberOfLogicalProcessors:F2}%"
+                ClockSpeed = $"{cpu.CurrentClockSpeed:N} MHz"
             }).ToList();
 
+        if (loads.Count > 0)
+            cpuList.ForEach(cpu => cpu.Load = $"{loads.First(x => cpu.Name.Contains(x.Name)).Value}%");
+        
         if (temperatures.Count > 0)
             cpuList.ForEach(cpu => cpu.Temperature = $"{temperatures.First(x => cpu.Name.Contains(x.Name)).Value:F2}°C");
 

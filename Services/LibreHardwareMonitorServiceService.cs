@@ -38,7 +38,7 @@ public class LibreHardwareMonitorServiceService(ILogger<LibreHardwareMonitorServ
             if (hardware.HardwareType != HardwareType.Cpu) continue;
             result.AddRange(
                 from sensor in hardware.Sensors 
-                where sensor.SensorType == SensorType.Power 
+                where sensor.SensorType == SensorType.Power && sensor.Name == "Package"
                 select new SensorInfo(hardware.Name, double.Parse(sensor.Value.ToString() ?? "0.00")));
         }
         return result.AsReadOnly();
@@ -57,7 +57,7 @@ public class LibreHardwareMonitorServiceService(ILogger<LibreHardwareMonitorServ
 
             result.AddRange(
                 from sensor in hardware.Sensors 
-                where sensor.SensorType == SensorType.Power 
+                where sensor.SensorType == SensorType.Power && sensor.Name == "GPU Package"
                 select new SensorInfo(hardware.Name, double.Parse(sensor.Value.ToString() ?? "0.00")));
         }
         return result.AsReadOnly();
@@ -72,10 +72,16 @@ public class LibreHardwareMonitorServiceService(ILogger<LibreHardwareMonitorServ
         {
             if (hardware.HardwareType != HardwareType.Cpu) continue;
 
-            result.AddRange(
-                from sensor in hardware.Sensors 
-                where sensor.SensorType == SensorType.Temperature 
-                select new SensorInfo(hardware.Name, double.Parse(sensor.Value.ToString() ?? "0.00")));
+            if (hardware.Name.Contains("AMD"))
+                result.AddRange(
+                    from sensor in hardware.Sensors
+                    where sensor.SensorType == SensorType.Temperature && sensor.Name == "Core (Tctl/Tdie)"
+                    select new SensorInfo(hardware.Name, double.Parse(sensor.Value.ToString() ?? "0.00")));
+            else
+                result.AddRange(
+                    from sensor in hardware.Sensors
+                    where sensor.SensorType == SensorType.Temperature && sensor.Name == "Core Package"
+                    select new SensorInfo(hardware.Name, double.Parse(sensor.Value.ToString() ?? "0.00")));
         }
         return result.AsReadOnly();
     }
@@ -93,7 +99,7 @@ public class LibreHardwareMonitorServiceService(ILogger<LibreHardwareMonitorServ
 
             result.AddRange(
                 from sensor in hardware.Sensors 
-                where sensor.SensorType == SensorType.Temperature 
+                where sensor.SensorType == SensorType.Temperature && sensor.Name == "GPU Core"
                 select new SensorInfo(hardware.Name, double.Parse(sensor.Value.ToString() ?? "0.00")));
         }
         return result.AsReadOnly();
@@ -112,7 +118,7 @@ public class LibreHardwareMonitorServiceService(ILogger<LibreHardwareMonitorServ
 
             result.AddRange(
                 from sensor in hardware.Sensors 
-                where sensor.SensorType == SensorType.Load 
+                where sensor.SensorType == SensorType.Load && sensor.Name == "GPU Core"
                 select new SensorInfo(hardware.Name, double.Parse(sensor.Value.ToString() ?? "0.00")));
         }
         return result.AsReadOnly();
@@ -131,7 +137,23 @@ public class LibreHardwareMonitorServiceService(ILogger<LibreHardwareMonitorServ
 
             result.AddRange(
                 from sensor in hardware.Sensors 
-                where sensor.SensorType == SensorType.Clock 
+                where sensor.SensorType == SensorType.Clock && sensor.Name == "GPU Core"
+                select new SensorInfo(hardware.Name, double.Parse(sensor.Value.ToString() ?? "0.00")));
+        }
+        return result.AsReadOnly();
+    }
+
+    public IReadOnlyList<SensorInfo> GetCpuLoads()
+    {
+        var result = new List<SensorInfo>();
+        EnsureOpen();
+        _computer.Accept(new UpdateVisitor());
+        foreach (var hardware in _computer.Hardware)
+        {
+            if (hardware.HardwareType != HardwareType.Cpu) continue;
+            result.AddRange(
+                from sensor in hardware.Sensors
+                where sensor.SensorType == SensorType.Load && sensor.Name == "CPU Total"
                 select new SensorInfo(hardware.Name, double.Parse(sensor.Value.ToString() ?? "0.00")));
         }
         return result.AsReadOnly();
