@@ -11,4 +11,5 @@ public interface ILibreHardwareMonitorService
     IReadOnlyList<SensorInfo> GetGpuLoads();
     IReadOnlyList<SensorInfo> GetGpuClocks();
     IReadOnlyList<SensorInfo> GetCpuLoads();
+    SensorSnapshot GetSnapshot();
 }

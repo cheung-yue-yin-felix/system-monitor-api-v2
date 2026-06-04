@@ -4,7 +4,7 @@ using System_Monitor_API_v2.Utils;
 
 namespace System_Monitor_API_v2.Services;
 
-public class LibreHardwareMonitorServiceService(ILogger<LibreHardwareMonitorServiceService> logger) : ILibreHardwareMonitorService, IDisposable
+public class LibreHardwareMonitorService(ILogger<LibreHardwareMonitorService> logger) : ILibreHardwareMonitorService, IDisposable
 {
     private readonly Computer _computer = InitiateComputer();
     private bool _isOpen;
@@ -28,6 +28,61 @@ public class LibreHardwareMonitorServiceService(ILogger<LibreHardwareMonitorServ
         _isOpen = true;
     }
 
+    public SensorSnapshot GetSnapshot()
+    {
+        var snapshot = new SensorSnapshot();
+        EnsureOpen();
+        _computer.Accept(new UpdateVisitor());
+
+        foreach (var hardware in _computer.Hardware)
+        {
+            if (hardware.HardwareType == HardwareType.Cpu)
+            {
+                foreach (var sensor in hardware.Sensors)
+                {
+                    if (sensor.Value is null) continue;
+                    var value = double.Parse(sensor.Value.ToString() ?? "0.00");
+
+                    if (sensor.SensorType == SensorType.Power && sensor.Name == "Package")
+                        snapshot.CpuPowers.Add(new SensorInfo(hardware.Name, value));
+
+                    if (sensor.SensorType == SensorType.Load && sensor.Name == "CPU Total")
+                        snapshot.CpuLoads.Add(new SensorInfo(hardware.Name, value));
+
+                    if (sensor.SensorType == SensorType.Temperature)
+                    {
+                        if (hardware.Name.Contains("AMD") && sensor.Name == "Core (Tctl/Tdie)")
+                            snapshot.CpuTemperatures.Add(new SensorInfo(hardware.Name, value));
+                        else if (!hardware.Name.Contains("AMD") && sensor.Name == "Core Package")
+                            snapshot.CpuTemperatures.Add(new SensorInfo(hardware.Name, value));
+                    }
+                }
+            }
+            else if (hardware.HardwareType is HardwareType.GpuAmd or HardwareType.GpuIntel or HardwareType.GpuNvidia)
+            {
+                foreach (var sensor in hardware.Sensors)
+                {
+                    if (sensor.Value is null) continue;
+                    var value = double.Parse(sensor.Value.ToString() ?? "0.00");
+
+                    if (sensor.SensorType == SensorType.Power && sensor.Name == "GPU Package")
+                        snapshot.GpuPowers.Add(new SensorInfo(hardware.Name, value));
+
+                    if (sensor.SensorType == SensorType.Temperature && sensor.Name == "GPU Core")
+                        snapshot.GpuTemperatures.Add(new SensorInfo(hardware.Name, value));
+
+                    if (sensor.SensorType == SensorType.Load && sensor.Name == "GPU Core")
+                        snapshot.GpuLoads.Add(new SensorInfo(hardware.Name, value));
+
+                    if (sensor.SensorType == SensorType.Clock && sensor.Name == "GPU Core")
+                        snapshot.GpuClocks.Add(new SensorInfo(hardware.Name, value));
+                }
+            }
+        }
+
+        return snapshot;
+    }
+
     public IReadOnlyList<SensorInfo> GetCpuPowers()
     {
         var result = new List<SensorInfo>();
@@ -36,6 +91,9 @@ public class LibreHardwareMonitorServiceService(ILogger<LibreHardwareMonitorServ
         foreach (var hardware in _computer.Hardware)
         {
             if (hardware.HardwareType != HardwareType.Cpu) continue;
+            
+            hardware.Update();
+            
             result.AddRange(
                 from sensor in hardware.Sensors 
                 where sensor.SensorType == SensorType.Power && sensor.Name == "Package"
@@ -54,7 +112,9 @@ public class LibreHardwareMonitorServiceService(ILogger<LibreHardwareMonitorServ
             if (hardware.HardwareType != HardwareType.GpuAmd &&
                 hardware.HardwareType != HardwareType.GpuIntel &&
                 hardware.HardwareType != HardwareType.GpuNvidia) continue;
-
+            
+            hardware.Update();
+            
             result.AddRange(
                 from sensor in hardware.Sensors 
                 where sensor.SensorType == SensorType.Power && sensor.Name == "GPU Package"
@@ -72,6 +132,8 @@ public class LibreHardwareMonitorServiceService(ILogger<LibreHardwareMonitorServ
         {
             if (hardware.HardwareType != HardwareType.Cpu) continue;
 
+            hardware.Update();
+            
             if (hardware.Name.Contains("AMD"))
                 result.AddRange(
                     from sensor in hardware.Sensors
@@ -97,6 +159,8 @@ public class LibreHardwareMonitorServiceService(ILogger<LibreHardwareMonitorServ
                 hardware.HardwareType != HardwareType.GpuIntel &&
                 hardware.HardwareType != HardwareType.GpuNvidia) continue;
 
+            hardware.Update();
+            
             result.AddRange(
                 from sensor in hardware.Sensors 
                 where sensor.SensorType == SensorType.Temperature && sensor.Name == "GPU Core"
@@ -116,6 +180,8 @@ public class LibreHardwareMonitorServiceService(ILogger<LibreHardwareMonitorServ
                 hardware.HardwareType != HardwareType.GpuIntel &&
                 hardware.HardwareType != HardwareType.GpuNvidia) continue;
 
+            hardware.Update();
+            
             result.AddRange(
                 from sensor in hardware.Sensors 
                 where sensor.SensorType == SensorType.Load && sensor.Name == "GPU Core"
@@ -135,6 +201,8 @@ public class LibreHardwareMonitorServiceService(ILogger<LibreHardwareMonitorServ
                 hardware.HardwareType != HardwareType.GpuIntel &&
                 hardware.HardwareType != HardwareType.GpuNvidia) continue;
 
+            hardware.Update();
+            
             result.AddRange(
                 from sensor in hardware.Sensors 
                 where sensor.SensorType == SensorType.Clock && sensor.Name == "GPU Core"
@@ -151,6 +219,9 @@ public class LibreHardwareMonitorServiceService(ILogger<LibreHardwareMonitorServ
         foreach (var hardware in _computer.Hardware)
         {
             if (hardware.HardwareType != HardwareType.Cpu) continue;
+            
+            hardware.Update();
+            
             result.AddRange(
                 from sensor in hardware.Sensors
                 where sensor.SensorType == SensorType.Load && sensor.Name == "CPU Total"
@@ -163,10 +234,9 @@ public class LibreHardwareMonitorServiceService(ILogger<LibreHardwareMonitorServ
     {
         if (_disposed) return;
         _disposed = true;
-        if (_isOpen)
-        {
-            _computer.Close();
-            _isOpen = false;
-        }
+        if (!_isOpen) return;
+        _computer.Close();
+        _isOpen = false;
+        GC.SuppressFinalize(this);
     }
 }

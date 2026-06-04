@@ -1,4 +1,6 @@
-﻿using System_Monitor_API_v2.Models;
+﻿using System.Runtime.CompilerServices;
+using System.Threading.Channels;
+using System_Monitor_API_v2.Models;
 
 namespace System_Monitor_API_v2.Services;
 
@@ -6,11 +8,30 @@ public class HardwareMetricsCache(
     IHardwareMetricPoller poller,
     ILogger<HardwareMetricsCache> logger) : IHostedService, IHardwareMetricsCache
 {
-    private HardwareMetrics? _latest;
     private CancellationTokenSource? _cts;
     private Task? _executingTask;
+    private readonly Channel<HardwareMetrics> _channel = Channel.CreateUnbounded<HardwareMetrics>();
 
-    public HardwareMetrics? Latest => _latest;
+    public HardwareMetrics? Latest { get; private set; }
+
+    public IAsyncEnumerable<HardwareMetrics> StreamAsync(CancellationToken cancellationToken = default)
+    {
+        return StreamInternalAsync(cancellationToken);
+    }
+
+    private async IAsyncEnumerable<HardwareMetrics> StreamInternalAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        if (Latest is not null)
+        {
+            yield return Latest;
+        }
+
+        await foreach (var metrics in _channel.Reader.ReadAllAsync(cancellationToken))
+        {
+            yield return metrics;
+        }
+    }
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
@@ -21,7 +42,8 @@ public class HardwareMetricsCache(
             {
                 await foreach (var metrics in poller.StreamAsync(TimeSpan.FromSeconds(1), _cts.Token))
                 {
-                    _latest = metrics;
+                    Latest = metrics;
+                    _channel.Writer.TryWrite(metrics);
                 }
             }
             catch (OperationCanceledException)
@@ -31,6 +53,10 @@ public class HardwareMetricsCache(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error in metrics caching loop");
+            }
+            finally
+            {
+                _channel.Writer.Complete();
             }
         }, _cts.Token);
         

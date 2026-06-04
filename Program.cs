@@ -25,7 +25,7 @@ builder.Services.AddSingleton<IHardwareMetricPoller, HardwareMetricPoller>();
 builder.Services.AddSingleton<HardwareMetricsCache>();
 builder.Services.AddSingleton<IHardwareMetricsCache>(sp => sp.GetRequiredService<HardwareMetricsCache>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<HardwareMetricsCache>());
-builder.Services.AddSingleton<ILibreHardwareMonitorService, LibreHardwareMonitorServiceService>();
+builder.Services.AddSingleton<ILibreHardwareMonitorService, LibreHardwareMonitorService>();
 
 builder.Services.AddCors(options =>
 {
@@ -81,14 +81,14 @@ app.MapGet("api/metrics", (IHardwareMetricsCache cache) =>
 
 app.MapGet("api/metrics/stream", async (
     HttpContext context,
-    IHardwareMetricPoller poller,
+    IHardwareMetricsCache cache,
     CancellationToken cancellationToken) =>
 {
     context.Response.Headers.Append("Content-Type", "text/event-stream");
     context.Response.Headers.Append("Cache-Control", "no-cache");
     context.Response.Headers.Append("Connection", "keep-alive");
     
-    await foreach (var metrics in poller.StreamAsync(TimeSpan.FromSeconds(1), cancellationToken))
+    await foreach (var metrics in cache.StreamAsync(cancellationToken))
     {
         var json = JsonSerializer.Serialize(metrics, jsonOptions);
         await context.Response.WriteAsync($"data: {json}\n\n", cancellationToken);

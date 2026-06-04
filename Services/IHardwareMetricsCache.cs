@@ -5,4 +5,5 @@ namespace System_Monitor_API_v2.Services;
 public interface IHardwareMetricsCache
 {
     HardwareMetrics? Latest { get; }
+    IAsyncEnumerable<HardwareMetrics> StreamAsync(CancellationToken cancellationToken = default);
 }

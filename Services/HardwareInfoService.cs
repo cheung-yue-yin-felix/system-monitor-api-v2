@@ -25,9 +25,11 @@ public class HardwareInfoService(ILogger<HardwareInfoService> logger, ILibreHard
                 logger.LogError(ex, "Exception on refreshing hardware info");
             }
 
-            FillCpuInfo(hardwareMetrics);
+            var snapshot = libreHardwareMonitorService.GetSnapshot();
+
+            FillCpuInfo(hardwareMetrics, snapshot);
             
-            FillGpuInfo(hardwareMetrics);
+            FillGpuInfo(hardwareMetrics, snapshot);
 
             FillMemoryInfo(hardwareMetrics);
 
@@ -43,11 +45,8 @@ public class HardwareInfoService(ILogger<HardwareInfoService> logger, ILibreHard
         }
     }
 
-    private void FillCpuInfo(HardwareMetrics hardwareMetrics)
+    private void FillCpuInfo(HardwareMetrics hardwareMetrics, SensorSnapshot snapshot)
     {
-        var temperatures = libreHardwareMonitorService.GetCpuTemperatures();
-        var powers = libreHardwareMonitorService.GetCpuPowers();
-        var loads = libreHardwareMonitorService.GetCpuLoads();
         var cpuList = _hardwareInfo.CpuList.Select(cpu => 
             new CpuMetrics
             {
@@ -55,14 +54,14 @@ public class HardwareInfoService(ILogger<HardwareInfoService> logger, ILibreHard
                 ClockSpeed = $"{cpu.CurrentClockSpeed:N} MHz"
             }).ToList();
 
-        if (loads.Count > 0)
-            cpuList.ForEach(cpu => cpu.Load = $"{loads.First(x => cpu.Name.Contains(x.Name)).Value}%");
+        if (snapshot.CpuLoads.Count > 0)
+            cpuList.ForEach(cpu => cpu.Load = $"{snapshot.CpuLoads.First(x => cpu.Name.Contains(x.Name)).Value}%");
         
-        if (temperatures.Count > 0)
-            cpuList.ForEach(cpu => cpu.Temperature = $"{temperatures.First(x => cpu.Name.Contains(x.Name)).Value:F2}°C");
+        if (snapshot.CpuTemperatures.Count > 0)
+            cpuList.ForEach(cpu => cpu.Temperature = $"{snapshot.CpuTemperatures.First(x => cpu.Name.Contains(x.Name)).Value:F2}°C");
 
-        if (powers.Count > 0)
-            cpuList.ForEach(cpu => cpu.Power = $"{powers.First(x => cpu.Name.Contains(x.Name)).Value:F2} W");
+        if (snapshot.CpuPowers.Count > 0)
+            cpuList.ForEach(cpu => cpu.Power = $"{snapshot.CpuPowers.First(x => cpu.Name.Contains(x.Name)).Value:F2} W");
         
         if (cpuList.Count > 1)
             hardwareMetrics.Cpus = cpuList;
@@ -70,12 +69,8 @@ public class HardwareInfoService(ILogger<HardwareInfoService> logger, ILibreHard
             hardwareMetrics.Cpu = cpuList[0];
     }
 
-    private void FillGpuInfo(HardwareMetrics hardwareMetrics)
+    private void FillGpuInfo(HardwareMetrics hardwareMetrics, SensorSnapshot snapshot)
     {
-        var loads = libreHardwareMonitorService.GetGpuLoads();
-        var temperatures = libreHardwareMonitorService.GetGpuTemperatures();
-        var powers = libreHardwareMonitorService.GetGpuPowers();
-        var clocks = libreHardwareMonitorService.GetGpuClocks();
         var gpuList = _hardwareInfo.VideoControllerList.Select(gpu => 
             new GpuMetrics()
             {
@@ -83,17 +78,17 @@ public class HardwareInfoService(ILogger<HardwareInfoService> logger, ILibreHard
                 VideoRamSize = ByteFormatter.BytesToGiB((long)gpu.AdapterRAM)
             }).ToList();
 
-        if (clocks.Count > 0)
-            gpuList.ForEach(gpu => gpu.ClockSpeed = $"{clocks.First(x => gpu.Name.Contains(x.Name)).Value:N} MHz");
+        if (snapshot.GpuClocks.Count > 0)
+            gpuList.ForEach(gpu => gpu.ClockSpeed = $"{snapshot.GpuClocks.First(x => gpu.Name.Contains(x.Name)).Value:N} MHz");
         
-        if (temperatures.Count > 0)
-            gpuList.ForEach(gpu => gpu.Temperature = $"{temperatures.First(x => gpu.Name.Contains(x.Name)).Value:F2}°C");
+        if (snapshot.GpuTemperatures.Count > 0)
+            gpuList.ForEach(gpu => gpu.Temperature = $"{snapshot.GpuTemperatures.First(x => gpu.Name.Contains(x.Name)).Value:F2}°C");
         
-        if (loads.Count > 0)
-            gpuList.ForEach(gpu => gpu.Load = $"{loads.First(x => gpu.Name.Contains(x.Name)).Value:F2}%");
+        if (snapshot.GpuLoads.Count > 0)
+            gpuList.ForEach(gpu => gpu.Load = $"{snapshot.GpuLoads.First(x => gpu.Name.Contains(x.Name)).Value:F2}%");
         
-        if (powers.Count > 0)
-            gpuList.ForEach(gpu => gpu.Power = $"{powers.First(x => gpu.Name.Contains(x.Name)).Value:F2} W");
+        if (snapshot.GpuPowers.Count > 0)
+            gpuList.ForEach(gpu => gpu.Power = $"{snapshot.GpuPowers.First(x => gpu.Name.Contains(x.Name)).Value:F2} W");
         
         if (gpuList.Count > 1)
             hardwareMetrics.Gpus = gpuList;

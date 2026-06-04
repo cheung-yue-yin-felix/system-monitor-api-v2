@@ -4,6 +4,8 @@ namespace System_Monitor_API_v2.Models;
 
 public class HardwareMetrics
 {
+    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<CpuMetrics>? Cpus { get; set; } = null;
     
